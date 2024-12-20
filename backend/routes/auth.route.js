@@ -4,9 +4,7 @@ import { login, logout, signup } from '../controllers/auth.controller.js';
 export const authRoutes = express.Router();
 
 
-authRoutes.get('/', (req, res) => {
-    res.send('Hello Worldd!!!');
-});
+
 // Register route
 authRoutes.post('/signup', signup);
 

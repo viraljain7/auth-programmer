@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import generateTokenAndSetToken from '../libs/generateTokenAndSetToken.js';
+import { sendVerificationEmail } from '../mailtrap/emails.js';
 
 
 const signup = async (req, res) => {
@@ -29,6 +30,8 @@ const signup = async (req, res) => {
         await newUser.save();
 
         generateTokenAndSetToken(res, newUser._id);
+
+        await sendVerificationEmail(newUser.email, verificationToken);
 
         res.status(201).json({
             success: true, message: 'User registered successfully', user: {
