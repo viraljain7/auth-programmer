@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import generateTokenAndSetToken from '../libs/generateTokenAndSetToken.js';
-import { sendVerificationEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail } from '../mailtrap/emails.js';
 
 
 const signup = async (req, res) => {
@@ -44,12 +44,45 @@ const signup = async (req, res) => {
     }
 };
 
+const verifyEmail = async (req, res) => {
+    const { code } = req.body;
+    try {
+
+        const user = await User.findOne({
+            verificationToken: code,
+            verificationTokenExpiresAt: { $gt: Date.now() },
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
+        }
+
+        user.isVerified = true;
+        user.verificationToken = undefined;
+        user.verificationTokenExpiresAt = undefined;
+        await user.save();
+
+        await sendWelcomeEmail(user.email, user.name);
+
+        res.status(200).json({
+            success: true,
+            message: "Email verified successfully",
+            user: {
+                ...user._doc,
+                password: undefined,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+}
+
 const login = async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await User.findOne({ username });
         if (!user) {
-            return res.status(400).json({ error: 'Invalid username or password' });
+            return res.status(400).json({ success: false, error: 'Invalid username or password' });
         }
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -58,9 +91,12 @@ const login = async (req, res) => {
         const token = jwt.sign({ userId: user._id }, 'your_jwt_secret', { expiresIn: '1h' });
         res.status(200).json({ token });
     } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 };
-const logout = async (req, res) => { }
+const logout = async (req, res) => {
+    res.clearCookie('token');
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+}
 
-export { signup, login, logout };
+export { signup, login, logout, verifyEmail, };
